@@ -5,7 +5,7 @@
 #include <fcntl.h>
 #include <linux/input.h>
 
-#define MOUSEFILE "/dev/myDev"
+#define MOUSEFILE "/dev/usbMouseDev"
 //
 int main()
 {

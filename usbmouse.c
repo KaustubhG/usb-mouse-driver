@@ -1,29 +1,3 @@
-/*
- *  Copyright (c) 1999-2001 Vojtech Pavlik
- *
- *  USB HIDBP Mouse support
- */
-
-/*
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
- *
- * Should you need to contact me, the author, you can do so either by
- * e-mail - mail your message to <vojtech@ucw.cz>, or by paper mail:
- * Vojtech Pavlik, Simunkova 1594, Prague 8, 182 00 Czech Republic
- */
-
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/module.h>
@@ -37,10 +11,6 @@
 #include <linux/device.h>
 #include <linux/cdev.h>
 
-/* for apple IDs */
-//#ifdef CONFIG_USB_HID_MODULE
-//#include "../hid-ids.h"
-//#endif
 
 /*
  * Version Information
@@ -53,8 +23,6 @@
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE(DRIVER_LICENSE);
-
-#define BRIGHTNESS_FILE "/sys/class/backlight/intel_backlight/brightness"
 
 static char current_data = 0;
 static int registered = 0;
@@ -70,55 +38,6 @@ struct usb_mouse {
 	dma_addr_t data_dma;
 };
 
-struct file* file_open(const char* path, int flags, int rights) 
-{
-    struct file* filp = NULL;
-    mm_segment_t oldfs;
-    int err = 0;
-
-    oldfs = get_fs();
-    set_fs(get_ds());
-    filp = filp_open(path, flags, rights);
-    set_fs(oldfs);
-    if(IS_ERR(filp)) {
-        err = PTR_ERR(filp);
-        return NULL;
-    }
-    return filp;
-}
-
-void file_close(struct file* file) 
-{
-    filp_close(file, NULL);
-}
-
-int file_read(struct file* file, unsigned long long offset, unsigned char* data, unsigned int size) 
-{
-    mm_segment_t oldfs;
-    int ret;
-
-    oldfs = get_fs();
-    set_fs(get_ds());
-
-    ret = vfs_read(file, data, size, &offset);
-
-    set_fs(oldfs);
-    return ret;
-} 
-
-int file_write(struct file* file, unsigned long long offset, unsigned char* data, unsigned int size) 
-{
-    mm_segment_t oldfs;
-    int ret;
-
-    oldfs = get_fs();
-    set_fs(get_ds());
-
-    ret = vfs_write(file, data, size, &offset);
-
-    set_fs(oldfs);
-    return ret;
-}
 
 static void usb_mouse_irq(struct urb *urb)
 {
@@ -126,8 +45,8 @@ static void usb_mouse_irq(struct urb *urb)
 	signed char *data = mouse->data;
 	struct input_dev *dev = mouse->dev;
 	int status;
-	char brightness_data[3];
-	//struct file *fp;
+
+
 	switch (urb->status) {
 	case 0:			/* success */
 		break;
@@ -140,15 +59,6 @@ static void usb_mouse_irq(struct urb *urb)
 		goto resubmit;
 	}
 
-	//input_report_key(dev, BTN_LEFT,   data[0] & 0x01);
-	//input_report_key(dev, BTN_RIGHT,  data[0] & 0x02);
-	//input_report_key(dev, BTN_MIDDLE, data[0] & 0x04);
-	//input_report_key(dev, BTN_SIDE,   data[0] & 0x08);
-	//input_report_key(dev, BTN_EXTRA,  data[0] & 0x10);
-
-	//input_report_rel(dev, REL_X,     data[1]);
-	//input_report_rel(dev, REL_Y,     data[2]);
-	//input_report_rel(dev, REL_WHEEL, data[3]);
 
 	input_sync(dev);
 resubmit:
@@ -168,37 +78,15 @@ resubmit:
 	}
 	
 	
-	
-	/*	
-	fp = file_open(BRIGHTNESS_FILE, O_RDONLY, 0);
-	/f(fp == NULL){
-		pr_info("Couldn't open backlight file\n");
-		return;
-	}
-	brightness_data[0] = 0;
-	brightness_data[1] = 0;
-	brightness_data[2] = 0;
-	file_read(fp, 0, brightness_data, 1);		//Read 3 digit data
-	file_close(fp);
-	*/	
-	//My code here
+		
+	//check which button pressed
 	if(data[0] & 0x01){
 		pr_info("Left mouse button clicked!\n");
-		brightness_data[0] = ((brightness_data[0] == '9')?'9':(brightness_data[0] + 1));
+		
 	}
 	else if(data[0] & 0x02){
 		pr_info("Right mouse button clicked!\n");
-		brightness_data[0] = ((brightness_data[0] == '0')?'0':(brightness_data[0] - 1));
 	}
-	/*
-	fp = file_open(BRIGHTNESS_FILE, O_WRONLY | O_TRUNC, 0);
-	if(fp == NULL){
-		pr_info("Couldn't open backlight file\n");
-		return;
-	}
-	file_write(fp, 0, brightness_data, 1);
-	file_close(fp);				
-	*/
 }
 
 static int usb_mouse_open(struct input_dev *dev)
@@ -213,6 +101,7 @@ static int usb_mouse_open(struct input_dev *dev)
 }
 
 
+//device file ops
 static int my_open(struct inode *i, struct file *f)
 {
   printk(KERN_INFO "Driver: open()\n");
@@ -343,25 +232,21 @@ static int usb_mouse_probe(struct usb_interface *intf, const struct usb_device_i
 
 	usb_set_intfdata(intf, mouse);
 	
-	//My code
+
 	
-	
-	t = register_chrdev(89, "myfirst", &pugs_fops);
+	//register device
+	t = register_chrdev(91, "mymouse", &pugs_fops);
 	if(t<0) 
 	{
-		pr_info("myfirst registration failed\n");
+		pr_info("mymouse registration failed\n");
 		registered = 0;
 	}
 	else 
 	{
-		pr_info("myfirst registration successful\n");
+		pr_info("mymouse registration successful\n");
 		registered = 1;
 	}
 	return t;
-	
-	
-	
-//	return 0;
 
 fail3:	
 	usb_free_urb(mouse->irq);
@@ -385,9 +270,10 @@ static void usb_mouse_disconnect(struct usb_interface *intf)
 		usb_free_coherent(interface_to_usbdev(intf), 8, mouse->data, mouse->data_dma);
 		kfree(mouse);
 	}
-	//My code
+	
+	//if registered, unregister device
 	if(registered)
-		unregister_chrdev(89, "myfirst");
+		unregister_chrdev(91, "mymouse");
 	registered = 0;
 	
 }
